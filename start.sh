@@ -1,3 +1,5 @@
 #!/bin/bash
 
-docker run -d -v ./data:/code/data -p "8000:8000" zuobianyou/collector:latest
+BASE_DIR=`pwd`
+
+docker run -d -v ${BASE_DIR}/data:/code/data -p "8000:8000" zuobianyou/collector:latest
