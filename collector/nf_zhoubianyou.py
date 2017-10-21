@@ -5,7 +5,10 @@
 
 from pyspider.libs.base_handler import *
 import re
+import logging
 import random
+
+logger = logging.getLogger(__name__)
 
 
 class Handler(BaseHandler):
@@ -15,8 +18,8 @@ class Handler(BaseHandler):
         }
     }
 
-    LOCATIONS = [2]
-    PROXY_POOL = ['117.68.167.215:8118', '60.189.123.156:8118', '42.49.119.145:8118']
+    LOCATIONS = [4, 7, 208, 206, 219, 345, 23, 224, 213, ]
+    PROXY_POOL = ['121.12.42.91:61234', '118.114.77.47:8080', '61.135.217.7:80', '']
 
     @every(minutes=24 * 60)
     def on_start(self):
@@ -76,6 +79,7 @@ class Handler(BaseHandler):
 
     @config(priority=3)
     def comment_detail_page(self, response):
+        logger.info(response.headers)
         # TODO: traverse all comments and images, then save
         place_selector = '#top > div.shop-wrap.shop-revitew > div.aside > div > div.info-name > h2 > a'
         place_name = response.doc(place_selector).text()
@@ -96,4 +100,3 @@ class Handler(BaseHandler):
             }
             comments.append(comment)
         return comments
-
