@@ -5,6 +5,7 @@
 
 from pyspider.libs.base_handler import *
 import re
+import random
 
 
 class Handler(BaseHandler):
@@ -15,25 +16,45 @@ class Handler(BaseHandler):
     }
 
     LOCATIONS = [2]
+    PROXY_POOL = ['117.68.167.215:8118', '60.189.123.156:8118', '42.49.119.145:8118']
 
     @every(minutes=24 * 60)
     def on_start(self):
         # all location
         for location in self.LOCATIONS:
-            self.crawl('http://www.dianping.com/search/category/{location}/35'.format(location=location), callback=self.index_page)
+            self.crawl(
+                'http://www.dianping.com/search/category/{location}/35'.format(location=location),
+                callback=self.index_page,
+                proxy=random.choice(self.PROXY_POOL)
+            )
 
     @config(age=10 * 24 * 60 * 60)
     def index_page(self, response):
         for each in response.doc('a[href^="http"]').items():
             # all location pages
             if re.match("http://www.dianping.com/search/category/\d+/35/p\d+$", each.attr.href):
-                self.crawl(each.attr.href, cookies=response.cookies, callback=self.index_page)
+                self.crawl(
+                    each.attr.href,
+                    cookies=response.cookies,
+                    callback=self.index_page,
+                    proxy=random.choice(self.PROXY_POOL)
+                )
             # all shop comment first page
             if re.match("http://www.dianping.com/shop/\d+$", each.attr.href):
                 # save comment detail
-                self.crawl(each.attr.href, cookies=response.cookies, callback=self.comment_detail_page)
+                self.crawl(
+                    each.attr.href,
+                    cookies=response.cookies,
+                    callback=self.comment_detail_page,
+                    proxy=random.choice(self.PROXY_POOL)
+                )
                 # follow
-                self.crawl(each.attr.href + "/review_more", cookies=response.cookies, callback=self.comment_index_page)
+                self.crawl(
+                    each.attr.href + "/review_more",
+                    cookies=response.cookies,
+                    callback=self.comment_index_page,
+                    proxy=random.choice(self.PROXY_POOL)
+                )
 
     @config(priority=2)
     def comment_index_page(self, response):
@@ -41,9 +62,17 @@ class Handler(BaseHandler):
             # all shop comment pages
             if re.match("http://www.dianping.com/shop/\d+/review_more\?pageno=\d+", each.attr.href):
                 # save comment detail
-                self.crawl(each.attr.href, cookies=response.cookies, callback=self.comment_detail_page)
+                self.crawl(each.attr.href,
+                    cookies=response.cookies,
+                    callback=self.comment_detail_page,
+                    proxy=random.choice(self.PROXY_POOL)
+                )
                 # follow
-                self.crawl(each.attr.href, cookies=response.cookies, callback=self.comment_index_page)
+                self.crawl(each.attr.href,
+                    cookies=response.cookies,
+                    callback=self.comment_index_page,
+                    proxy=random.choice(self.PROXY_POOL)
+                )
 
     @config(priority=3)
     def comment_detail_page(self, response):
