@@ -25,6 +25,10 @@ EXPOSE $SERVICE_PORT
 ADD ./collector /code
 WORKDIR /code
 
+VOLUME ["/code/data"]
+
 # change dir owner
 RUN chown -R $SERVICE_USER /code
 USER $SERVICE_USER
+
+CMD "./run.sh"
