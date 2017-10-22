@@ -15,26 +15,25 @@ class Handler(BaseHandler):
         }
     }
 
-    DOMAIN = 'http://www.dianping.com/'
     LOCATIONS = ['taipei', 'hongkong']
-    PROXY_POOL = ['121.12.42.91:61234', '118.114.77.47:8080', '61.135.217.7:80', '']
+    PROXY_POOL = ['121.31.101.118:8123', '121.31.100.53:8123', '110.72.38.227:8123', '117.78.37.198:8000']
 
     @every(minutes=24 * 60)
     def on_start(self):
         # all location
         for location in self.LOCATIONS:
             self.crawl(
-                'http://www.dianping.com/{location}/attraction'.format(location=location),
+             'http://www.dianping.com/{location}/attraction'.format(location=location),
                 callback=self.index_page,
                 proxy=random.choice(self.PROXY_POOL)
             )
 
     @config(age=10 * 24 * 60 * 60)
     def index_page(self, response):
-        page = response.doc('div.Pages a.NextPage').items()
+        page = response.doc('div.Pages a.NextPage')
         if page is not None:
-            self.crawl( 
-                DOMAIN + page.attr.href,
+            self.crawl(
+                page.attr.href,
                 cookies=response.cookies,
                 callback=self.index_page,
                 proxy=random.choice(self.PROXY_POOL)
@@ -43,7 +42,7 @@ class Handler(BaseHandler):
         shop_selector = 'div.poi-ctn > ul > li > div.txt > div.poi-title a'
         for shop in response.doc(shop_selector).items():
             self.crawl(
-                DOMAIN + shop.attr.href,
+                shop.attr.href,
                 cookies=response.cookies,
                 callback=self.comment_index_page,
                 proxy=random.choice(self.PROXY_POOL)
@@ -56,16 +55,16 @@ class Handler(BaseHandler):
             self.crawl(
                 comment_list.attr.href,
                 cookies=response.cookies,
-                callback=self.comment_index_page,
+                callback=self.comment_list_page,
                 proxy=random.choice(self.PROXY_POOL)
             )
-        else:
-            last_comment_page = response.doc('div.Pages > div.Pages a.NextPage').prevAll('a:last')
-            if last_comment_page is not None:
-                last_page_no = last_comment_page.attr.title
-                for page_no in range(int(last_page_no)):
-                    yield response.url + '?pageno={page_no}'.format({page_no=page_no})
+    
+    @config(priority=3)
+    def comment_list_page(self, response):
+        last_comment_page = response.doc('div.Pages > div.Pages a.NextPage')
+        yield {'url' : last_comment_page.attr.href}
+        if last_comment_page is not None:
+            last_page_no = last_comment_page.attr.title
             
-
-
-
+            # for page_no in range(int(last_page_no)):
+              #  yield {'url' : response.url + '?pageno={page_no}'.format(page_no=page_no)}
