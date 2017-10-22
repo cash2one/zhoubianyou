@@ -31,7 +31,7 @@ class Handler(BaseHandler):
 
     @config(age=10 * 24 * 60 * 60)
     def index_page(self, response):
-        page = response.doc('div.Pages a.NextPage').items():
+        page = response.doc('div.Pages a.NextPage').items()
         if page is not None:
             self.crawl( 
                 DOMAIN + page.attr.href,
