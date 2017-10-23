@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- encoding: utf-8 -*-
 # Created on 2017-10-21 01:46:53
-# Project: zuobianyou
+# Project: gat_zhoubianyou
 
 from pyspider.libs.base_handler import *
 import re
