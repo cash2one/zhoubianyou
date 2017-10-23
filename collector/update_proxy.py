@@ -5,6 +5,7 @@
 
 from pyspider.libs.base_handler import *
 import logging
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,8 @@ class Handler(BaseHandler):
             self.crawl(
                 'http://www.kuaidaili.com/free/inha/{p}/'.format(p=page+1),
                 callback=self.proxy_list_page,
+                age=600,  # sends
+                auto_recrawl=True
             )
 
     def proxy_list_page(self, response):
@@ -46,6 +49,8 @@ class Handler(BaseHandler):
                     self.TEST_URL,
                     proxy=proxy_host,
                     callback=self.test_proxy_result,
+                    last_modified=False,
+                    taskid=md5string(unicode(uuid.uuid4())),
                     save={
                         'proxy_host': proxy_host
                     }
