@@ -7,6 +7,7 @@ from pyspider.libs.base_handler import *
 import re
 import logging
 import random
+from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
@@ -18,8 +19,11 @@ class Handler(BaseHandler):
         }
     }
 
+    PROXY_UPDATER = 'proxy_updater'
+    PROXY_POOL = defaultdict(int)  # proxy_host: fail_count
+    FAIL_THRESHOLD = 3  # discard proxy_host after FAIL_THRESHOLD fail crawling
+    COMMENT_FETCHER = 'comment_fetcher'
     LOCATIONS = [4, 7, 208, 206, 219, 345, 23, 224, 213, ]
-    PROXY_POOL = ['121.12.42.91:61234', '118.114.77.47:8080', '61.135.217.7:80', '']
 
     @every(minutes=24 * 60)
     def on_start(self):
@@ -28,7 +32,7 @@ class Handler(BaseHandler):
             self.crawl(
                 'http://www.dianping.com/search/category/{location}/35'.format(location=location),
                 callback=self.index_page,
-                proxy=random.choice(self.PROXY_POOL)
+                proxy=random.choice(self._get_valid_proxies())
             )
 
     @config(age=10 * 24 * 60 * 60)
@@ -40,23 +44,21 @@ class Handler(BaseHandler):
                     each.attr.href,
                     cookies=response.cookies,
                     callback=self.index_page,
-                    proxy=random.choice(self.PROXY_POOL)
+                    proxy=random.choice(self._get_valid_proxies())
                 )
             # all shop comment first page
             if re.match("http://www.dianping.com/shop/\d+$", each.attr.href):
                 # save comment detail
-                self.crawl(
-                    each.attr.href,
-                    cookies=response.cookies,
-                    callback=self.comment_detail_page,
-                    proxy=random.choice(self.PROXY_POOL)
-                )
+                self.send_message(self.COMMENT_FETCHER, {
+                    'url': each.attr.href,
+                    'cookies': response.cookies,
+                })
                 # follow
                 self.crawl(
                     each.attr.href + "/review_more",
                     cookies=response.cookies,
                     callback=self.comment_index_page,
-                    proxy=random.choice(self.PROXY_POOL)
+                    proxy=random.choice(self._get_valid_proxies())
                 )
 
     @config(priority=2)
@@ -65,38 +67,27 @@ class Handler(BaseHandler):
             # all shop comment pages
             if re.match("http://www.dianping.com/shop/\d+/review_more\?pageno=\d+", each.attr.href):
                 # save comment detail
-                self.crawl(each.attr.href,
-                    cookies=response.cookies,
-                    callback=self.comment_detail_page,
-                    proxy=random.choice(self.PROXY_POOL)
-                )
+                self.send_message(self.COMMENT_FETCHER, {
+                    'url': each.attr.href,
+                    'cookies': response.cookies,
+                })
                 # follow
-                self.crawl(each.attr.href,
+                self.crawl(
+                    each.attr.href,
                     cookies=response.cookies,
                     callback=self.comment_index_page,
-                    proxy=random.choice(self.PROXY_POOL)
+                    proxy=random.choice(self._get_valid_proxies())
                 )
 
-    @config(priority=3)
-    def comment_detail_page(self, response):
-        logger.info(response.headers)
-        # TODO: traverse all comments and images, then save
-        place_selector = '#top > div.shop-wrap.shop-revitew > div.aside > div > div.info-name > h2 > a'
-        place_name = response.doc(place_selector).text()
-        comments_block_selector = '#top > div.shop-wrap.shop-revitew > div.main > div > div.comment-mode > div.comment-list > ul > li'
-        comments = []
-        for comment_item in response.doc(comments_block_selector).items():
-            user_name_selector = 'div.pic > p.name > a'
-            user_name = comment_item(user_name_selector).text()
-            user_rate_selector = 'div.content > div.user-info > span'
-            user_rate = comment_item(user_rate_selector).attr.title
-            comment_txt_selector = 'div.content > div.comment-txt > div'
-            comment_txt = comment_item(comment_txt_selector).text()
-            comment = {
-                'place_name': place_name,
-                'user_name': user_name,
-                'user_rate': user_rate,
-                'comment_txt': comment_txt,
-            }
-            comments.append(comment)
-        return comments
+    def on_message(self, project, message):
+        if project == self.PROXY_UPDATER:
+            # new proxy added
+            proxy_host = message
+            self.PROXY_POOL[proxy_host] = 0
+
+    def _get_valid_proxies(self):
+        return [
+            k for k, v in filter(
+                lambda k, v: v < self.FAIL_THRESHOLD, self.PROXY_POOL.iteritems()
+            )
+        ]
