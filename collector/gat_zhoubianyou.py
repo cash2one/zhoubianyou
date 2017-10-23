@@ -6,6 +6,7 @@
 from pyspider.libs.base_handler import *
 import re
 import random
+from collections import defaultdict
 
 
 class Handler(BaseHandler):
@@ -14,57 +15,89 @@ class Handler(BaseHandler):
             'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.79 Safari/537.36',
         }
     }
-
+    PROXY_UPADATER = 'proxy_updater'
+    PROXY_POOL = defaultdict(int)#['121.31.101.118:8123', '121.31.100.53:8123', '110.72.38.227:8123', '117.78.37.198:8000']
+    FAIL_THRESHOLD = 3
+    COMMENT_FETCHER = 'comment_fetcher'
     LOCATIONS = ['taipei', 'hongkong']
-    PROXY_POOL = ['121.31.101.118:8123', '121.31.100.53:8123', '110.72.38.227:8123', '117.78.37.198:8000']
 
     @every(minutes=24 * 60)
     def on_start(self):
         # all location
         for location in self.LOCATIONS:
+            proxy = random.choice(self._get_valid_proxies())
             self.crawl(
              'http://www.dianping.com/{location}/attraction'.format(location=location),
                 callback=self.index_page,
-                proxy=random.choice(self.PROXY_POOL)
+                proxy=proxy,
+                save={'proxy': proxy}
             )
 
-    @config(age=10 * 24 * 60 * 60)
+    @config(age=24 * 60 * 60)
+    @catch_status_code_error
     def index_page(self, response):
+        proxy = response.save.get('proxy')
+        if not response.ok:
+            self.PROXY_POOL[proxy] += 1
+            return
         page = response.doc('div.Pages a.NextPage')
         if page is not None:
+            proxy = random.choice(self._get_valid_proxies())
             self.crawl(
                 page.attr.href,
                 cookies=response.cookies,
                 callback=self.index_page,
-                proxy=random.choice(self.PROXY_POOL)
+                proxy=proxy,
+                save={'proxy': proxy}
             )
 
         shop_selector = 'div.poi-ctn > ul > li > div.txt > div.poi-title a'
         for shop in response.doc(shop_selector).items():
+            proxy = random.choice(self._get_valid_proxies())
             self.crawl(
-                shop.attr.href,
+                shop.attr.href + '/review_more',
                 cookies=response.cookies,
                 callback=self.comment_index_page,
-                proxy=random.choice(self.PROXY_POOL)
+                proxy=proxy,
+                save={'proxy':proxy}
             )
 
-    @config(priority=2)
+    @config(priority=2, age=24*60*60)
+    @catch_status_code_error
     def comment_index_page(self, response):
-        comment_list = response.doc('div#morelink-wrapper p.comment-all a')
-        if comment_list is not None:
-            self.crawl(
-                comment_list.attr.href,
-                cookies=response.cookies,
-                callback=self.comment_list_page,
-                proxy=random.choice(self.PROXY_POOL)
+        proxy = response.save.get('proxy')
+        if not response.ok:
+            self.PROXY_POOL[proxy] += 1
+            return
+        for each in response.doc('a[href^="http"]').items():
+            # all shop comment pages
+            if re.match("http://www.dianping.com/shop/\d+/review_more\?pageno=\d+", each.attr.href):
+                # save comment detail
+                self.send_message(self.COMMENT_FETCHER, {
+                    'url': each.attr.href,
+                    'cookies': response.cookies,
+                })
+                # follow
+                proxy = random.choice(self._get_valid_proxies())
+                self.crawl(
+                    each.attr.href,
+                    cookies=response.cookies,
+                    callback=self.comment_index_page,
+                    proxy=proxy,
+                    save={'proxy': proxy}
+                )
+
+    def on_message(self, project, message):
+        if project == self.PROXY_UPDATER:
+            # new proxy added
+            proxy_host = message
+            self.PROXY_POOL[proxy_host] = 0
+
+    def _get_valid_proxies(self):
+        # TODO: GC proxy pool
+        proxies = [
+            (k,v) for k, v in filter(
+                lambda k, v: v <= self.FAIL_THRESHOLD, self.PROXY_POOL.iteritems()
             )
-    
-    @config(priority=3)
-    def comment_list_page(self, response):
-        last_comment_page = response.doc('div.Pages > div.Pages a.NextPage')
-        yield {'url' : last_comment_page.attr.href}
-        if last_comment_page is not None:
-            last_page_no = last_comment_page.attr.title
-            
-            # for page_no in range(int(last_page_no)):
-              #  yield {'url' : response.url + '?pageno={page_no}'.format(page_no=page_no)}
+        ]
+        return proxies if proxies else ['']
