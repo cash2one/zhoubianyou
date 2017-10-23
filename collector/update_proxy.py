@@ -5,7 +5,6 @@
 
 from pyspider.libs.base_handler import *
 import logging
-import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -18,18 +17,16 @@ class Handler(BaseHandler):
     }
 
     PROXY_USERS = ['nf_zhoubianyou', 'gat_zhoubianyou', 'comment_fetcher']
-    PAGES = 5  # 只抓取5页匿名代理
+    PAGES = 10  # 只抓取5页匿名代理
     TEST_URL = 'http://www.baidu.com'
 
     @every(minutes=60)
     def on_start(self):
-        # clean up proxy pool
-        self.PROXY_POOL = []
         for page in range(self.PAGES):
             self.crawl(
                 'http://www.kuaidaili.com/free/inha/{p}/'.format(p=page+1),
                 callback=self.proxy_list_page,
-                age=600,  # sends
+                age=10,  # seconds
                 auto_recrawl=True
             )
 
@@ -42,6 +39,7 @@ class Handler(BaseHandler):
             ip = proxy_item(ip_col_selector).text()
             port = proxy_item(port_col_selector).text()
             http_type = proxy_item(type_col_selector).text()
+            logger.info(ip + ':' + port)
             if http_type and http_type.lower() == 'http':
                 proxy_host = '{ip}:{port}'.format(ip=ip, port=port)
                 # test proxy
@@ -50,7 +48,7 @@ class Handler(BaseHandler):
                     proxy=proxy_host,
                     callback=self.test_proxy_result,
                     last_modified=False,
-                    taskid=md5string(unicode(uuid.uuid4())),
+                    taskid=md5string(proxy_host),
                     save={
                         'proxy_host': proxy_host
                     }
