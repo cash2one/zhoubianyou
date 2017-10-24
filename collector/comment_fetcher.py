@@ -5,6 +5,7 @@
 
 from pyspider.libs.base_handler import *
 import logging
+import json
 import random
 from datetime import datetime
 from collections import defaultdict
@@ -58,7 +59,7 @@ class Handler(BaseHandler):
                 'comment_txt': comment_txt,
                 'create_time': create_time,
             }
-            self.send_message(self.project_name, comment, md5string(json.dump(comment)))
+            self.send_message(self.project_name, comment, md5string(json.dumps(comment)))
 
     def on_message(self, project, message):
         if project == self.PROXY_UPDATER:
