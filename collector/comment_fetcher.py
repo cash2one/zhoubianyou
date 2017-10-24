@@ -38,7 +38,7 @@ class Handler(BaseHandler):
         shop_item = response.doc(shop_selector)
         shop_name = shop_item.text()
         try:
-            shop_id = response.url.split('/')[2]
+            shop_id = response.url.split('/')[4]
         except ValueError:
             shop_id = None
         comments_block_selector = '#top > div.shop-wrap.shop-revitew > div.main > div > div.comment-mode > div.comment-list > ul > li'
