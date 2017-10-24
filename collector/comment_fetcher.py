@@ -6,6 +6,7 @@
 from pyspider.libs.base_handler import *
 import logging
 import random
+from datetime import datetime
 from collections import defaultdict
 
 logger = logging.getLogger(__name__)
@@ -23,16 +24,23 @@ class Handler(BaseHandler):
     FAIL_THRESHOLD = 3  # discard proxy_host after FAIL_THRESHOLD fail crawling
 
     def on_start(self):
-        # do nothing
-        pass
+        # crawl dummy page for running io_loop
+        self.crawl('http://www.baidu.com', auto_recrawl=True, age=10, callback=self.dummy_page)
+
+    def dummy_page(self, response):
+        return {'date': datetime.now()}
 
     def comment_detail_page(self, response):
         logger.info(response.headers)
         # TODO: traverse all comments and images, then save
-        place_selector = '#top > div.shop-wrap.shop-revitew > div.aside > div > div.info-name > h2 > a'
-        place_name = response.doc(place_selector).text()
+        shop_selector = '#top > div.shop-wrap.shop-revitew > div.aside > div > div.info-name > h2 > a'
+        shop_item = response.doc(shop_selector)
+        try:
+            shop_id = shop_item.attr.href.split('/')[2]
+        except ValueError:
+            shop_id = None
+        shop_name = shop_item.text()
         comments_block_selector = '#top > div.shop-wrap.shop-revitew > div.main > div > div.comment-mode > div.comment-list > ul > li'
-        comments = []
         for comment_item in response.doc(comments_block_selector).items():
             user_name_selector = 'div.pic > p.name > a'
             user_name = comment_item(user_name_selector).text()
@@ -40,20 +48,26 @@ class Handler(BaseHandler):
             user_rate = comment_item(user_rate_selector).attr.title
             comment_txt_selector = 'div.content > div.comment-txt > div'
             comment_txt = comment_item(comment_txt_selector).text()
+            create_time_selector = 'div.misc-info > span.time'
+            create_time = comment_item(create_time_selector).text()
             comment = {
-                'place_name': place_name,
+                'shop_id': shop_id,
+                'shop_name': shop_name,
                 'user_name': user_name,
                 'user_rate': user_rate,
                 'comment_txt': comment_txt,
+                'create_time': create_time,
             }
-            comments.append(comment)
-        return comments
+            self.send_message(self.project_name, comment, md5string(json.dump(comment)))
 
     def on_message(self, project, message):
         if project == self.PROXY_UPDATER:
             # new proxy added
             proxy_host = message
             self.PROXY_POOL[proxy_host] = 0
+        elif project == self.project_name:
+            # save one comment record
+            return message
         else:
             # should be index fetcher
             url = message.get('url')
@@ -67,8 +81,9 @@ class Handler(BaseHandler):
             )
 
     def _get_valid_proxies(self):
-        return [
+        proxies = [
             k for k, v in filter(
-                lambda k, v: v < self.FAIL_THRESHOLD, self.PROXY_POOL.iteritems()
+                lambda item: item[1] < self.FAIL_THRESHOLD, self.PROXY_POOL.iteritems()
             )
         ]
+        return proxies if proxies else ['']
