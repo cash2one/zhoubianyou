@@ -40,7 +40,7 @@ class Handler(BaseHandler):
     @config(age=24 * 60 * 60)
     @catch_status_code_error
     def index_page(self, response):
-        proxy = response.save.get('proxy')
+        proxy = response.save['proxy']
         if not response.ok:
             self.PROXY_POOL[proxy] += 1
             return
@@ -75,7 +75,7 @@ class Handler(BaseHandler):
     @config(priority=2, age=24 * 60 * 60)
     @catch_status_code_error
     def comment_index_page(self, response):
-        proxy = response.save.get('proxy')
+        proxy = response.save['proxy']
         if not response.ok:
             self.PROXY_POOL[proxy] += 1
             return
