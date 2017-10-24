@@ -35,11 +35,11 @@ class Handler(BaseHandler):
         # TODO: traverse all comments and images, then save
         shop_selector = '#top > div.shop-wrap.shop-revitew > div.aside > div > div.info-name > h2 > a'
         shop_item = response.doc(shop_selector)
+        shop_name = shop_item.text()
         try:
-            shop_id = shop_item.attr.href.split('/')[2]
+            shop_id = response.url.split('/')[2]
         except ValueError:
             shop_id = None
-        shop_name = shop_item.text()
         comments_block_selector = '#top > div.shop-wrap.shop-revitew > div.main > div > div.comment-mode > div.comment-list > ul > li'
         for comment_item in response.doc(comments_block_selector).items():
             user_name_selector = 'div.pic > p.name > a'
