@@ -61,7 +61,7 @@ class Handler(BaseHandler):
                 self.send_message(self.COMMENT_FETCHER, {
                     'url': each.attr.href,
                     'cookies': response.cookies,
-                })
+                }, url=each.attr.href)
                 # follow
                 proxy = random.choice(self._get_valid_proxies())
                 self.crawl(
@@ -86,7 +86,7 @@ class Handler(BaseHandler):
                 self.send_message(self.COMMENT_FETCHER, {
                     'url': each.attr.href,
                     'cookies': response.cookies,
-                })
+                }, url=each.attr.href)
                 # follow
                 proxy = random.choice(self._get_valid_proxies())
                 self.crawl(
@@ -106,7 +106,7 @@ class Handler(BaseHandler):
     def _get_valid_proxies(self):
         # TODO: GC proxy pool
         proxies = [
-            (k,v) for k, v in filter(
+            (k, v) for k, v in filter(
                 lambda k, v: v <= self.FAIL_THRESHOLD, self.PROXY_POOL.iteritems()
             )
         ]
