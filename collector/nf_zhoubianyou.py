@@ -19,7 +19,7 @@ class Handler(BaseHandler):
         }
     }
 
-    PROXY_UPDATER = 'proxy_updater'
+    PROXY_UPDATER = 'update_proxy'
     PROXY_POOL = defaultdict(int)  # proxy_host: fail_count
     FAIL_THRESHOLD = 3  # discard proxy_host after FAIL_THRESHOLD fail crawling
     COMMENT_FETCHER = 'comment_fetcher'

@@ -63,11 +63,11 @@ class Handler(BaseHandler):
 
     @catch_status_code_error
     def test_proxy_result(self, response):
-        proxy_host = response.save.get('proxy_host')
+        proxy_host = response.save['proxy_host']
         if response.ok:
             # test success
             for project in self.PROXY_USERS:
-                self.send_message(project, proxy_host, url=proxy_host)
+                self.send_message(project, proxy_host, proxy_host)
             return {'proxy': proxy_host}
         # test fail, ignore proxy_host
         logger.warn('test proxy fail, ignore: {host}'.format(host=proxy_host))
