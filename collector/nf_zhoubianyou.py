@@ -19,13 +19,13 @@ class Handler(BaseHandler):
         }
     }
 
-    PROXY_UPDATER = 'proxy_updater'
+    PROXY_UPDATER = 'update_proxy'
     PROXY_POOL = defaultdict(int)  # proxy_host: fail_count
     FAIL_THRESHOLD = 3  # discard proxy_host after FAIL_THRESHOLD fail crawling
     COMMENT_FETCHER = 'comment_fetcher'
     LOCATIONS = [4, 7, 208, 206, 219, 345, 23, 224, 213, ]
 
-    @every(minutes=24 * 60)
+    @every(minutes=1)
     def on_start(self):
         # all location
         for location in self.LOCATIONS:
@@ -37,10 +37,10 @@ class Handler(BaseHandler):
                 save={'proxy': proxy}
             )
 
-    @config(age=24 * 60 * 60)
+    @config(age=100)
     @catch_status_code_error
     def index_page(self, response):
-        proxy = response.save.get('proxy')
+        proxy = response.save['proxy']
         if not response.ok:
             self.PROXY_POOL[proxy] += 1
             return
@@ -61,7 +61,7 @@ class Handler(BaseHandler):
                 self.send_message(self.COMMENT_FETCHER, {
                     'url': each.attr.href,
                     'cookies': response.cookies,
-                })
+                }, each.attr.href)
                 # follow
                 proxy = random.choice(self._get_valid_proxies())
                 self.crawl(
@@ -72,10 +72,10 @@ class Handler(BaseHandler):
                     save={'proxy': proxy}
                 )
 
-    @config(priority=2, age=24 * 60 * 60)
+    @config(priority=2, age=100)
     @catch_status_code_error
     def comment_index_page(self, response):
-        proxy = response.save.get('proxy')
+        proxy = response.save['proxy']
         if not response.ok:
             self.PROXY_POOL[proxy] += 1
             return
@@ -86,7 +86,7 @@ class Handler(BaseHandler):
                 self.send_message(self.COMMENT_FETCHER, {
                     'url': each.attr.href,
                     'cookies': response.cookies,
-                })
+                }, each.attr.href)
                 # follow
                 proxy = random.choice(self._get_valid_proxies())
                 self.crawl(
@@ -106,8 +106,8 @@ class Handler(BaseHandler):
     def _get_valid_proxies(self):
         # TODO: GC proxy pool
         proxies = [
-            (k,v) for k, v in filter(
-                lambda k, v: v <= self.FAIL_THRESHOLD, self.PROXY_POOL.iteritems()
+            k for k, v in filter(
+                lambda item: item[1] <= self.FAIL_THRESHOLD, self.PROXY_POOL.iteritems()
             )
         ]
         return proxies if proxies else ['']

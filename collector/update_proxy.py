@@ -18,18 +18,22 @@ class Handler(BaseHandler):
     }
 
     PROXY_USERS = ['nf_zhoubianyou', 'gat_zhoubianyou', 'comment_fetcher']
-    PAGES = 5  # 只抓取5页匿名代理
+    PAGES = 10  # 只抓取10页匿名代理
     TEST_URL = 'http://www.baidu.com'
 
     @every(minutes=60)
     def on_start(self):
-        # clean up proxy pool
-        self.PROXY_POOL = []
         for page in range(self.PAGES):
             self.crawl(
                 'http://www.kuaidaili.com/free/inha/{p}/'.format(p=page+1),
                 callback=self.proxy_list_page,
-                age=600,  # sends
+                age=300,  # seconds
+                auto_recrawl=True
+            )
+            self.crawl(
+                'http://www.kuaidaili.com/free/intr/{p}/'.format(p=page+1),
+                callback=self.proxy_list_page,
+                age=300,  # seconds
                 auto_recrawl=True
             )
 
@@ -42,6 +46,7 @@ class Handler(BaseHandler):
             ip = proxy_item(ip_col_selector).text()
             port = proxy_item(port_col_selector).text()
             http_type = proxy_item(type_col_selector).text()
+            logger.info(ip + ':' + port)
             if http_type and http_type.lower() == 'http':
                 proxy_host = '{ip}:{port}'.format(ip=ip, port=port)
                 # test proxy
@@ -58,11 +63,11 @@ class Handler(BaseHandler):
 
     @catch_status_code_error
     def test_proxy_result(self, response):
-        proxy_host = response.save.get('proxy_host')
+        proxy_host = response.save['proxy_host']
         if response.ok:
             # test success
             for project in self.PROXY_USERS:
-                self.send_message(project, proxy_host, url=proxy_host)
+                self.send_message(project, proxy_host, proxy_host)
             return {'proxy': proxy_host}
         # test fail, ignore proxy_host
         logger.warn('test proxy fail, ignore: {host}'.format(host=proxy_host))
