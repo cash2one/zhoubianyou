@@ -5,9 +5,11 @@
 
 from pyspider.libs.base_handler import *
 import re
+import logging
 import random
 from collections import defaultdict
 
+logger = logging.getLogger(__name__)
 
 class Handler(BaseHandler):
     crawl_config = {
@@ -16,12 +18,12 @@ class Handler(BaseHandler):
         }
     }
     PROXY_UPADATER = 'proxy_updater'
-    PROXY_POOL = defaultdict(int)#['121.31.101.118:8123', '121.31.100.53:8123', '110.72.38.227:8123', '117.78.37.198:8000']
+    PROXY_POOL = defaultdict(int)
     FAIL_THRESHOLD = 3
     COMMENT_FETCHER = 'comment_fetcher'
-    LOCATIONS = ['taipei', 'hongkong']
+    LOCATIONS = ['taipei', 'hongkong', 'macau', 'kaohsiung', 'kenting', 'hualien']
 
-    @every(minutes=24 * 60)
+    @every(minutes=1)
     def on_start(self):
         # all location
         for location in self.LOCATIONS:
@@ -33,7 +35,7 @@ class Handler(BaseHandler):
                 save={'proxy': proxy}
             )
 
-    @config(age=24 * 60 * 60)
+    @config(age=100)
     @catch_status_code_error
     def index_page(self, response):
         proxy = response.save.get('proxy')
@@ -62,7 +64,7 @@ class Handler(BaseHandler):
                 save={'proxy':proxy}
             )
 
-    @config(priority=2, age=24*60*60)
+    @config(priority=2, age=100)
     @catch_status_code_error
     def comment_index_page(self, response):
         proxy = response.save.get('proxy')

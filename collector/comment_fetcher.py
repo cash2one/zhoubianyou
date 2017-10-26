@@ -21,6 +21,7 @@ class Handler(BaseHandler):
     }
 
     PROXY_UPDATER = 'update_proxy'
+    IMAGE_FETCHER = 'image_fetcher'
     PROXY_POOL = defaultdict(int)  # proxy_host: fail_count
     FAIL_THRESHOLD = 3  # discard proxy_host after FAIL_THRESHOLD fail crawling
 
@@ -78,7 +79,18 @@ class Handler(BaseHandler):
                     'comment_txt': comment_txt,
                     'create_time': create_time,
                 }
-                self.send_message(self.project_name, comment, md5string(json.dumps(comment)))
+                md5token = md5string(json.dumps(comment))
+                self.send_message(self.project_name, comment, md5token)
+                # obtain pictures
+                images_url_selector = 'div.content > div.photos a.item'
+                for idx, image_item in enumerate(comment_item(images_url_selector).items()):
+                    image_url = image_item.attr.href
+                    self.send_message(self.IMAGE_FETCHER, {
+                        'url': image_url,
+                        'cookie': response.cookies,
+                        'ext': image_url.split('.')[-1],
+                        'filename': md5token + '_' + str(idx)
+                    })
 
     def on_message(self, project, message):
         if project == self.PROXY_UPDATER:
