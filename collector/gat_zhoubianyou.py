@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- encoding: utf-8 -*-
 # Created on 2017-10-21 01:46:53
-# Project: nf_zhoubianyou
+# Project: gat_zhoubianyou
 
 from pyspider.libs.base_handler import *
 import re
@@ -11,19 +11,17 @@ from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
-
 class Handler(BaseHandler):
     crawl_config = {
         'headers': {
             'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.79 Safari/537.36',
         }
     }
-
-    PROXY_UPDATER = 'update_proxy'
-    PROXY_POOL = defaultdict(int)  # proxy_host: fail_count
-    FAIL_THRESHOLD = 3  # discard proxy_host after FAIL_THRESHOLD fail crawling
+    PROXY_UPADATER = 'proxy_updater'
+    PROXY_POOL = defaultdict(int)
+    FAIL_THRESHOLD = 3
     COMMENT_FETCHER = 'comment_fetcher'
-    LOCATIONS = [4, 7, 208, 206, 219, 345, 23, 224, 213, ]
+    LOCATIONS = ['taipei', 'hongkong', 'macau', 'kaohsiung', 'kenting', 'hualien']
 
     @every(minutes=1)
     def on_start(self):
@@ -31,7 +29,7 @@ class Handler(BaseHandler):
         for location in self.LOCATIONS:
             proxy = random.choice(self._get_valid_proxies())
             self.crawl(
-                'http://www.dianping.com/search/category/{location}/35'.format(location=location),
+             'http://www.dianping.com/{location}/attraction'.format(location=location),
                 callback=self.index_page,
                 proxy=proxy,
                 save={'proxy': proxy}
@@ -40,42 +38,36 @@ class Handler(BaseHandler):
     @config(age=100)
     @catch_status_code_error
     def index_page(self, response):
-        proxy = response.save['proxy']
+        proxy = response.save.get('proxy')
         if not response.ok:
             self.PROXY_POOL[proxy] += 1
             return
-        for each in response.doc('a[href^="http"]').items():
-            # all location pages
-            if re.match("http://www.dianping.com/search/category/\d+/35/p\d+$", each.attr.href):
-                proxy = random.choice(self._get_valid_proxies())
-                self.crawl(
-                    each.attr.href,
-                    cookies=response.cookies,
-                    callback=self.index_page,
-                    proxy=proxy,
-                    save={'proxy': proxy}
-                )
-            # all shop comment first page
-            if re.match("http://www.dianping.com/shop/\d+$", each.attr.href):
-                # save comment detail
-                self.send_message(self.COMMENT_FETCHER, {
-                    'url': each.attr.href,
-                    'cookies': response.cookies,
-                }, each.attr.href)
-                # follow
-                proxy = random.choice(self._get_valid_proxies())
-                self.crawl(
-                    each.attr.href + "/review_more",
-                    cookies=response.cookies,
-                    callback=self.comment_index_page,
-                    proxy=proxy,
-                    save={'proxy': proxy}
-                )
+        page = response.doc('div.Pages a.NextPage')
+        if page is not None:
+            proxy = random.choice(self._get_valid_proxies())
+            self.crawl(
+                page.attr.href,
+                cookies=response.cookies,
+                callback=self.index_page,
+                proxy=proxy,
+                save={'proxy': proxy}
+            )
+
+        shop_selector = 'div.poi-ctn > ul > li > div.txt > div.poi-title a'
+        for shop in response.doc(shop_selector).items():
+            proxy = random.choice(self._get_valid_proxies())
+            self.crawl(
+                shop.attr.href + '/review_more',
+                cookies=response.cookies,
+                callback=self.comment_index_page,
+                proxy=proxy,
+                save={'proxy':proxy}
+            )
 
     @config(priority=2, age=100)
     @catch_status_code_error
     def comment_index_page(self, response):
-        proxy = response.save['proxy']
+        proxy = response.save.get('proxy')
         if not response.ok:
             self.PROXY_POOL[proxy] += 1
             return
@@ -86,7 +78,7 @@ class Handler(BaseHandler):
                 self.send_message(self.COMMENT_FETCHER, {
                     'url': each.attr.href,
                     'cookies': response.cookies,
-                }, each.attr.href)
+                })
                 # follow
                 proxy = random.choice(self._get_valid_proxies())
                 self.crawl(
@@ -106,8 +98,8 @@ class Handler(BaseHandler):
     def _get_valid_proxies(self):
         # TODO: GC proxy pool
         proxies = [
-            k for k, v in filter(
-                lambda item: item[1] <= self.FAIL_THRESHOLD, self.PROXY_POOL.iteritems()
+            (k,v) for k, v in filter(
+                lambda k, v: v <= self.FAIL_THRESHOLD, self.PROXY_POOL.iteritems()
             )
         ]
         return proxies if proxies else ['']
