@@ -11,13 +11,15 @@ from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
+
 class Handler(BaseHandler):
     crawl_config = {
         'headers': {
             'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.79 Safari/537.36',
         }
     }
-    PROXY_UPADATER = 'proxy_updater'
+
+    PROXY_UPADATER = 'update_proxy'
     PROXY_POOL = defaultdict(int)
     FAIL_THRESHOLD = 3
     COMMENT_FETCHER = 'comment_fetcher'
@@ -29,7 +31,7 @@ class Handler(BaseHandler):
         for location in self.LOCATIONS:
             proxy = random.choice(self._get_valid_proxies())
             self.crawl(
-             'http://www.dianping.com/{location}/attraction'.format(location=location),
+                'http://www.dianping.com/{location}/attraction'.format(location=location),
                 callback=self.index_page,
                 proxy=proxy,
                 save={'proxy': proxy}
@@ -38,7 +40,7 @@ class Handler(BaseHandler):
     @config(age=100)
     @catch_status_code_error
     def index_page(self, response):
-        proxy = response.save.get('proxy')
+        proxy = response.save['proxy']
         if not response.ok:
             self.PROXY_POOL[proxy] += 1
             return
@@ -61,13 +63,13 @@ class Handler(BaseHandler):
                 cookies=response.cookies,
                 callback=self.comment_index_page,
                 proxy=proxy,
-                save={'proxy':proxy}
+                save={'proxy': proxy}
             )
 
     @config(priority=2, age=100)
     @catch_status_code_error
     def comment_index_page(self, response):
-        proxy = response.save.get('proxy')
+        proxy = response.save['proxy']
         if not response.ok:
             self.PROXY_POOL[proxy] += 1
             return
@@ -78,7 +80,7 @@ class Handler(BaseHandler):
                 self.send_message(self.COMMENT_FETCHER, {
                     'url': each.attr.href,
                     'cookies': response.cookies,
-                })
+                }, each.attr.href)
                 # follow
                 proxy = random.choice(self._get_valid_proxies())
                 self.crawl(
@@ -98,8 +100,8 @@ class Handler(BaseHandler):
     def _get_valid_proxies(self):
         # TODO: GC proxy pool
         proxies = [
-            (k,v) for k, v in filter(
-                lambda k, v: v <= self.FAIL_THRESHOLD, self.PROXY_POOL.iteritems()
+            k for k, v in filter(
+                lambda item: item[1] <= self.FAIL_THRESHOLD, self.PROXY_POOL.iteritems()
             )
         ]
         return proxies if proxies else ['']

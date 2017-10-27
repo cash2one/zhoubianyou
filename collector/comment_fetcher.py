@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- encoding: utf-8 -*-
 # Created on 2017-10-21 01:46:53
-# Project: comment_fetcher 
+# Project: comment_fetcher
 
 from pyspider.libs.base_handler import *
 import logging
@@ -96,7 +96,8 @@ class Handler(BaseHandler):
         if project == self.PROXY_UPDATER:
             # new proxy added
             proxy_host = message
-            self.PROXY_POOL[proxy_host] = 0
+            if not self.PROXY_POOL.get(proxy_host):
+                self.PROXY_POOL[proxy_host] = 0
         elif project == self.project_name:
             # save one comment record
             return message
