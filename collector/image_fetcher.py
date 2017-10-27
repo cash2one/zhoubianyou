@@ -25,6 +25,7 @@ class Handler(BaseHandler):
     FAIL_THRESHOLD = 3  # discard proxy_host after FAIL_THRESHOLD fail crawling
 
     def on_start(self):
+        os.makedirs(self.BASE_DIR_PATH)
         # test image fetcher
         url = 'http://qcloud.dpfile.com/pc/WwVccGSGdJk32ZbslqciG2dQN0mzg5ezN2b0gRTKGz65m9ai5Dwcre_SlpgUg8LoF5u7J_jS4MuCaeLAHD0KTg.jpg'
         self.crawl(
@@ -32,7 +33,7 @@ class Handler(BaseHandler):
             auto_recrawl=True,
             age=500,
             callback=self.image_detail_page,
-            save={'extension': 'jpg', 'filename': 'testimage.jpg'}
+            save={'ext': 'jpg', 'filename': 'testimage'}
         )
 
     @catch_status_code_error
@@ -66,7 +67,7 @@ class Handler(BaseHandler):
         else:
             ext = response.save['ext']
             file_name = response.save['filename']
-            file_path = os.path.join(self.BASE_DIR_PATH, file_name + ext)
+            file_path = os.path.join(self.BASE_DIR_PATH, file_name + '.' + ext)
             content = response.content
             self.save_img(content, file_path)
 
@@ -107,5 +108,5 @@ class Handler(BaseHandler):
         return proxies if proxies else ['']
 
     def save_img(self, content, path):
-        with open(path, "wb") as f:
+        with open(path, "wb+") as f:
             f.write(content)
