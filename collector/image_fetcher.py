@@ -25,7 +25,8 @@ class Handler(BaseHandler):
     FAIL_THRESHOLD = 3  # discard proxy_host after FAIL_THRESHOLD fail crawling
 
     def on_start(self):
-        os.makedirs(self.BASE_DIR_PATH)
+        if not os.path.isdir(self.BASE_DIR_PATH):
+            os.makedirs(self.BASE_DIR_PATH)
         # test image fetcher
         url = 'http://qcloud.dpfile.com/pc/WwVccGSGdJk32ZbslqciG2dQN0mzg5ezN2b0gRTKGz65m9ai5Dwcre_SlpgUg8LoF5u7J_jS4MuCaeLAHD0KTg.jpg'
         self.crawl(
