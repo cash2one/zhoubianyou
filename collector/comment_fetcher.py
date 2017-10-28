@@ -61,6 +61,10 @@ class Handler(BaseHandler):
                 shop_id = response.url.split('/')[4]
             except ValueError:
                 shop_id = None
+            location_selector = '#G_loc > span'
+            location_item = response.doc(location_selector)
+            location_name = location_item.text()
+
             comments_block_selector = '#top > div.shop-wrap.shop-revitew > div.main > div > div.comment-mode > div.comment-list > ul > li'
             for comment_item in response.doc(comments_block_selector).items():
                 user_name_selector = 'div.pic > p.name > a'
@@ -72,6 +76,7 @@ class Handler(BaseHandler):
                 create_time_selector = 'div.misc-info > span.time'
                 create_time = comment_item(create_time_selector).text()
                 comment = {
+                    'location': location_name,
                     'shop_id': shop_id,
                     'shop_name': shop_name,
                     'user_name': user_name,
