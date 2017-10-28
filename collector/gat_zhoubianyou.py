@@ -95,7 +95,8 @@ class Handler(BaseHandler):
         if project == self.PROXY_UPDATER:
             # new proxy added
             proxy_host = message
-            self.PROXY_POOL[proxy_host] = 0
+            if not self.PROXY_POOL.get(proxy_host):
+                self.PROXY_POOL[proxy_host] = 0
 
     def _get_valid_proxies(self):
         # TODO: GC proxy pool

@@ -1,9 +1,5 @@
 FROM python:2.7-slim
 
-# add user
-ENV SERVICE_USER collector
-RUN useradd -ms /bin/bash $SERVICE_USER
-
 # install libs
 COPY ./collector/requirements.txt /
 ADD ./jessie-sources.list /etc/apt/sources.list
@@ -26,9 +22,5 @@ ADD ./collector /code
 WORKDIR /code
 
 VOLUME ["/code/data"]
-
-# change dir owner
-RUN chown -R $SERVICE_USER /code
-USER $SERVICE_USER
 
 CMD "./run.sh"
