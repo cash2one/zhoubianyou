@@ -84,7 +84,7 @@ class Handler(BaseHandler):
                 # obtain pictures
                 images_url_selector = 'div.content > div.shop-photo > ul > li'
                 for idx, image_item in enumerate(comment_item(images_url_selector).items()):
-                    image_url = image_item('a > img').attr.href
+                    image_url = image_item('a > img').attr.src
                     if image_url:
                         self.send_message(self.IMAGE_FETCHER, {
                             'url': image_url,

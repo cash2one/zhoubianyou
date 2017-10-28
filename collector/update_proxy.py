@@ -17,7 +17,7 @@ class Handler(BaseHandler):
         }
     }
 
-    PROXY_USERS = ['nf_zhoubianyou', 'gat_zhoubianyou', 'comment_fetcher']
+    PROXY_USERS = ['nf_zhoubianyou', 'gat_zhoubianyou', 'comment_fetcher', 'image_fetcher']
     PAGES = 10  # 只抓取10页匿名代理
     TEST_URL = 'http://www.baidu.com'
 
