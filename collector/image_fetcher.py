@@ -40,37 +40,32 @@ class Handler(BaseHandler):
     @catch_status_code_error
     def image_detail_page(self, response):
         if not response.ok:
-            cookies = None
             if response.save:
                 old_proxy = response.save.get('proxy')
                 # mark old proxy failed
                 if old_proxy:
                     self.PROXY_POOL[old_proxy] += 1
-                cookies = response.save.get('cookies')
             # recrawl with another proxy
             current_proxy = random.choice(self._get_valid_proxies())
             ext = response.save['ext']
-            file_name = response.save['filename']
+            filename = response.save['filename']
             self.crawl(
                 response.url,
-                cookies=cookies,
                 proxy=current_proxy,
                 callback=self.image_detail_page,
                 retries=0,  # 关闭retry
                 connect_timeout=5,
                 save={
                     'ext': ext,
-                    'filename': file_name,
-                    'cookies': cookies,
+                    'filename': filename,
                     'proxy': current_proxy
                 }
             )
         else:
             ext = response.save['ext']
-            file_name = response.save['filename']
-            file_path = os.path.join(self.BASE_DIR_PATH, file_name + '.' + ext)
+            filename = response.save['filename'] + '.' + ext
             content = response.content
-            self.save_img(content, file_path)
+            self.save_img(content, filename)
 
     def on_message(self, project, message):
         if project == self.PROXY_UPDATER:
@@ -81,21 +76,18 @@ class Handler(BaseHandler):
         else:
             # should be index fetcher
             url = message.get('url')
-            cookies = message.get('cookies')
             ext = message.get('ext')
-            file_name = message.get('filename')
+            filename = message.get('filename')
             current_proxy = random.choice(self._get_valid_proxies())
             self.crawl(
                 url,
-                cookies=cookies,
                 proxy=current_proxy,
                 callback=self.image_detail_page,
                 retries=0,  # 关闭retry
                 connect_timeout=5,  # 缩短连接探测时间
                 save={
                     'ext': ext,
-                    'filename': file_name,
-                    'cookies': cookies,
+                    'filename': filename,
                     'proxy': current_proxy
                 }
             )
@@ -108,6 +100,10 @@ class Handler(BaseHandler):
         ]
         return proxies if proxies else ['']
 
-    def save_img(self, content, path):
-        with open(path, "wb+") as f:
+    def save_img(self, content, filename):
+        task_id = filename.split('_')[0]
+        path = os.path.join(self.BASE_DIR_PATH, task_id[:2], task_id[-2:])
+        if not os.path.isdir(path):
+            os.makedirs(path)
+        with open(os.path.join(path, filename), "wb") as f:
             f.write(content)
